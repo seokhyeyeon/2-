@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>이화여자고등학교 안내 웹앱</title>
+    
+    <style>
+        /* 기본 초기화 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+            background-color: #f8f9fa; 
+            color: #333;
+        }
+
+        /* 1. 상단 투명도 60% 바 (최상단 고정) */
+        .top-bar {
+            position: fixed; 
+            top: 0;
+            left: 0;
+            width: 100%;
+            background-color: rgba(255, 255, 255, 0.6); 
+            backdrop-filter: blur(4px); /* 흐림 효과 추가로 고급스럽게 처리 */
+            z-index: 1000; 
+            padding: 15px 20px; 
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .logo-link {
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .logo-img {
+            height: 40px; 
+            width: auto;
+            object-fit: contain; 
+        }
+
+        /* 2. 16:9 무한 루프 슬라이더 컨테이너 */
+        .slider-container {
+            position: relative;
+            width: 100%;
+            max-width: 1000px;
+            margin: 0 auto; 
+            aspect-ratio: 16 / 9; 
+            overflow: hidden;
+            background-color: #000;
+        }
+
+        .slider-wrapper {
+            display: flex;
+            width: 100%;
+            height: 100%;
+        }
+
+        .slide {
+            flex: 0 0 100%; 
+            width: 100%;
+            height: 100%;
+            position: relative;
+            cursor: pointer; 
+        }
+
+        .slide img, 
+        .slide video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        /* 슬라이더 좌우 원형 화살표 버튼 */
+        .slider-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background-color: transparent; 
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.7); 
+            border-radius: 50%; 
+            width: 40px;
+            height: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            font-size: 18px;
+            z-index: 10;
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+
+        .slider-btn:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+            border-color: white;
+        }
+
+        .left-btn { left: 20px; }
+        .right-btn { right: 20px; }
+
+        /* 첫 사진 중앙 텍스트 애니메이션 스타일 */
+        .intro-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: white;
+            text-shadow: 2px 2px 5px rgba(0,0,0,0.8);
+            width: 100%;
+            pointer-events: none; 
+        }
+
+        .text-ko {
+            font-size: 28px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            margin-bottom: 5px;
+            opacity: 0; 
+        }
+
+        .text-en {
+            font-size: 32px;
+            font-weight: 300;
+            font-family: 'Times New Roman', serif; 
+            letter-spacing: 1px;
+            opacity: 0; 
+        }
+
+        @keyframes slideUp {
+            0% { opacity: 0; transform: translateY(30px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        .intro-text.animate .text-ko {
+            animation: slideUp 0.8s ease forwards;
+            animation-delay: 0.2s; 
+        }
+
+        .intro-text.animate .text-en {
+            animation: slideUp 0.8s ease forwards;
+            animation-delay: 0.6s; 
+        }
+
+        /* 3. ⭐️ 하단 캠퍼스 지도 섹션 영역 ⭐️ */
+        .map-section {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 0 20px 60px 20px;
+            /* 💡 핵심: 슬라이더 세로 길이(화면너비의 9/16)의 대략 2/3 만큼 상단 공백 확보 */
+            margin-top: calc((100vw * 9 / 16) * 2 / 3); 
+        }
+
+        /* 반응형 웹디자인을 고려한 마진 캡 제한 (너무 벌어지지 않게 최대치 고정) */
+        @media (min-width: 1000px) {
+            .map-section { margin-top: 375px; } 
+        }
+
+        .map-title {
+            font-size: 22px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #1e4620; /* 이화여고 상징그린톤 커스텀 */
+            border-left: 4px solid #1e4620;
+            padding-left: 10px;
+            text-align: left;
+        }
+
+        .map-description {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        /* 다른 채팅방에서 완성한 지도 그 자체의 컨테이너 기능 인터페이스 */
+        .map-container {
+            position: relative;
+            width: 100%;
+            background-color: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            overflow: hidden;
+            /* 다른 방에서 세팅하신 지도의 비율이나 높이에 맞게 조절 가능합니다 */
+            aspect-ratio: 4 / 3; 
+        }
+
+        /* 다른 채팅방에서 사용했던 실제 지도 이미지/svg/canvas가 채워질 영역 */
+        .map-core-render {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background-color: #e5e3df; /* 일반적인 지도 로딩 배경색 */
+        }
+
+        /* 인터랙티브 마커/버튼 예시 (지도 로직 내 구현체 통합용) */
+        .map-marker {
+            position: absolute;
+            background-color: #1e4620;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            transition: transform 0.2s, background-color 0.2s;
+            text-decoration: none;
+        }
+        .map-marker:hover {
+            transform: scale(1.1);
+            background-color: #387a3c;
+        }
+    </style>
+</head>
+<body>
+
+    <header class="top-bar">
+        <a onclick="resetApp()" class="logo-link">
+            <img src="logo.png" alt="이화여고 로고" class="logo-img">
+        </a>
+    </header>
+
+    <main>
+        <section class="slider-container">
+            <button class="slider-btn left-btn" onclick="moveSlide(-1, event)">&#10094;</button>
+
+            <div class="slider-wrapper" id="sliderWrapper">
+                <div class="slide"><img src="ewha-9.jpg" alt="이화여고 전경 9"></div>
+
+                <div class="slide">
+                    <img src="ewha-1.jpg" alt="이화여고 심슨기념관">
+                    <div class="intro-text animate" id="introText">
+                        <div class="text-ko">이화여자고등학교</div>
+                        <div class="text-en">EWHA HIGH SCHOOL</div>
+                    </div>
+                </div>
+                <div class="slide"><img src="ewha-2.jpg" alt="이화여고 백주년기념관"></div>
+                <div class="slide"><img src="ewha-3.jpg" alt="이화여고 정보관"></div>
+                <div class="slide"><img src="ewha-4.jpg" alt="이화여고 손탁우물"></div>
+                <div class="slide"><img src="ewha-5.jpg" alt="이화여고 노천극장"></div>
+                <div class="slide"><img src="ewha-6(1).jpg" alt="이화여고 유관순기념관 외관"></div>
+                <div class="slide"><img src="ewha-6(2).jpg" alt="이화여고 유관순기념관 내부"></div>
+                <div class="slide"><img src="ewha-7.jpg" alt="이화여고 체육관"></div>
+                <div class="slide"><img src="ewha-8.jpg" alt="이화여고 이화교회"></div>
+                <div class="slide"><img src="ewha-9.jpg" alt="이화여고 전경 9"></div>
+
+                <div class="slide"><img src="ewha-1.jpg" alt="이화여고 심슨기념관"></div>
+            </div>
+
+            <button class="slider-btn right-btn" onclick="moveSlide(1, event)">&#10095;</button>
+        </section>
+
+        <section class="map-section">
+            <div class="map-title">이화여고 스마트 캠퍼스 맵</div>
+            <div class="map-description">처음 방문하신 분들을 위한 안내 지도입니다. 가고 싶은 건물을 선택하시면 상세 안내 페이지로 이동합니다.</div>
+            
+            <div class="map-container" id="mapAppContainer">
+                
+                <img src="campus-base-map.png" alt="캠퍼스 지도 기본 배경" class="map-core-render">
+                
+                <a href="detail1.html" class="map-marker" style="top: 40%; left: 25%;">심슨기념관</a>
+                <a href="detail2.html" class="map-marker" style="top: 30%; left: 60%;">백주년기념관</a>
+                <a href="detail3.html" class="map-marker" style="top: 60%; left: 45%;">노천극장</a>
+                <a href="detail4.html" class="map-marker" style="top: 75%; left: 70%;">체육관</a>
+                
+            </div>
+        </section>
+    </main>
+
+    <script>
+        let currentIndex = 1; 
+        const sliderWrapper = document.getElementById('sliderWrapper');
+        const slides = document.querySelectorAll('.slide');
+        const totalSlides = slides.length; 
+        const introText = document.getElementById('introText');
+        let isTransitioning = false; 
+
+        // 최초 정렬 위치 계산
+        sliderWrapper.style.transform = `translateX(-${currentIndex * 100}%)`;
+
+        function triggerIntroAnimation() {
+            introText.classList.remove('animate');
+            void introText.offsetWidth; 
+            introText.classList.add('animate');
+        }
+
+        function resetApp() {
+            if (isTransitioning) return;
+            currentIndex = 1;
+            sliderWrapper.style.transition = 'transform 0.5s ease-in-out';
+            sliderWrapper.style.transform = `translateX(-${currentIndex * 100}%)`;
+            triggerIntroAnimation();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        slides.forEach((slide) => {
+            slide.addEventListener('click', () => {
+                resetApp();
+            });
+        });
+
+        function moveSlide(direction, event) {
+            if (event) event.stopPropagation(); 
+            if (isTransitioning) return; 
+
+            isTransitioning = true;
+            currentIndex += direction;
+
+            sliderWrapper.style.transition = 'transform 0.5s ease-in-out';
+            sliderWrapper.style.transform = `translateX(-${currentIndex * 100}%)`;
+
+            if (currentIndex === 1) {
+                triggerIntroAnimation();
+            }
+        }
+
+        sliderWrapper.addEventListener('transitionend', () => {
+            isTransitioning = false;
+
+            // 오른쪽 가짜 1번에 도착 시 진짜 1번으로 무음 스킵
+            if (currentIndex === totalSlides - 1) {
+                sliderWrapper.style.transition = 'none'; 
+                currentIndex = 1;
+                sliderWrapper.style.transform = `translateX(-${currentIndex * 100}%)`;
+                triggerIntroAnimation(); 
+            }
+            
+            // 왼쪽 가짜 9번에 도착 시 진짜 9번으로 무음 스킵
+            if (currentIndex === 0) {
+                sliderWrapper.style.transition = 'none'; 
+                currentIndex = totalSlides - 2;
+                sliderWrapper.style.transform = `translateX(-${currentIndex * 100}%)`;
+            }
+        });
+    </script>
+</body>
+</html>
